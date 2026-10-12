@@ -1,5 +1,11 @@
 {
   "schema": 1,
   "core_sha": "13e6d8f4634e687ae774a0e3a6d483f6a095b832",
-  "compatible_from": []
+  "compatible_from": [],
+  "workflow_sources": [
+    {
+      "blob_sha": "3a8e5ab270a4276a646cde9cb7a3c59deadac159",
+      "core_sha": "13e6d8f4634e687ae774a0e3a6d483f6a095b832"
+    }
+  ]
 }
