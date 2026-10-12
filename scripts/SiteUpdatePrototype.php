@@ -56,9 +56,10 @@ final class TomosSiteUpdatePrototype
         return sha1('blob ' . strlen($content) . "\0" . $content);
     }
 
-    private function authorize(array $connection, string $repo): array
+    private function authorize(array $connection, string $repo, bool $forUpdate = false): array
     {
-        // Hard-gate all writes to this disposable repository in this prototype.
+        // Experimental repository hard gate; the real API must use its authenticated
+        // connection / repository binding and never trust client-supplied account IDs.
         if ($repo !== self::REPOSITORY || ($connection['account'] ?? '') !== 'tomosweb'
             || !isset($connection['installation_id']) || !is_int($connection['installation_id'])
             || $connection['installation_id'] <= 0) {
@@ -71,20 +72,31 @@ final class TomosSiteUpdatePrototype
             throw new RuntimeException('auth_required');
         }
         $install = $this->data($response);
-        $permissions = $install['permissions'] ?? [];
+        $permissions = $install['permissions'] ?? null;
         if ((int) ($install['id'] ?? 0) !== $installationId ||
             strcasecmp((string) ($install['account']['login'] ?? ''), 'tomosweb') !== 0 ||
-            !empty($install['suspended_at'])) {
+            !empty($install['suspended_at']) || !is_array($permissions)) {
             throw new RuntimeException('auth_required');
         }
-        if (($permissions['contents'] ?? '') !== 'write' || ($permissions['workflows'] ?? '') !== 'write') {
+        // Reading eligibility requires no new permissions; only applying does.
+        $hasContents = in_array($permissions['contents'] ?? '', ['read', 'write'], true);
+        $canUpdate = ($permissions['contents'] ?? '') === 'write'
+            && ($permissions['workflows'] ?? '') === 'write';
+        if (!$hasContents) {
+            throw new RuntimeException('permission_required');
+        }
+        if ($forUpdate && !$canUpdate) {
             throw new RuntimeException('permission_required');
         }
 
-        // Request minimum scope; never grant access to other repositories.
+        // Request least privilege: eligibility check only reads; update is separate
+        // and limited to this single installation repository.
+        $tokenPermissions = $forUpdate
+            ? ['contents' => 'write', 'workflows' => 'write', 'metadata' => 'read']
+            : ['contents' => 'read', 'metadata' => 'read'];
         $response = $this->api('app', 'POST', '/app/installations/' . $installationId . '/access_tokens', [
             'repositories' => ['tomos-setup-flow-test-20261008'],
-            'permissions' => ['contents' => 'write', 'workflows' => 'write', 'metadata' => 'read'],
+            'permissions' => $tokenPermissions,
         ]);
         if ($response['status'] !== 201) {
             throw new RuntimeException('permission_required');
@@ -106,7 +118,8 @@ final class TomosSiteUpdatePrototype
             $remote['id'] <= 0) {
             throw new RuntimeException('repository_not_allowed');
         }
-        return ['token' => $token, 'id' => $remote['id'], 'installation_id' => $installationId];
+        return ['token' => $token, 'id' => $remote['id'],
+            'installation_id' => $installationId, 'can_update' => $canUpdate];
     }
 
     private function workflow(string $token): array
@@ -206,12 +219,21 @@ final class TomosSiteUpdatePrototype
             if ($plan['status'] !== 'update_available') {
                 return ['show_update' => false];
             }
+            if (!$auth['can_update']) {
+                // A genuinely available update must not disappear only because
+                // the installation has not approved the additional permission.
+                // This URL points to GitHub's installation settings, not OAuth.
+                return ['show_update' => true, 'can_update' => false,
+                    'label' => 'GitHubで更新を許可',
+                    'manage_url' => 'https://github.com/settings/installations/' . $auth['installation_id']];
+            }
             $intent = $this->intent(['v' => 1, 'repo' => $repo, 'installation_id' => $auth['installation_id'],
                 'repository_id' => $auth['id'], 'expected_blob_sha' => $plan['expected_blob_sha'],
                 'target' => $plan['target'], 'expires_at' => time() + 300]);
-            return ['show_update' => true, 'label' => 'サイトを更新', 'intent' => $intent];
+            return ['show_update' => true, 'can_update' => true, 'label' => 'サイトを更新',
+                'intent' => $intent];
         } catch (RuntimeException $e) {
-            // UI: no update button on unknown/unsupported configurations.
+            // UI: never show internal compatibility errors as update offers.
             return ['show_update' => false];
         }
     }
@@ -221,7 +243,7 @@ final class TomosSiteUpdatePrototype
     {
         try {
             $claims = $this->verifyIntent($intent);
-            $auth = $this->authorize($connection, $repo);
+            $auth = $this->authorize($connection, $repo, true);
             if ($auth['installation_id'] !== $claims['installation_id'] || $auth['id'] !== $claims['repository_id']) {
                 throw new RuntimeException('invalid_intent');
             }
