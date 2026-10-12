@@ -12,7 +12,7 @@ $old = '13e6d8f4634e687ae774a0e3a6d483f6a095b832';
 $new = '5b92b99114d719c083040b4af77f547da9987b32';
 $repo = 'tomosweb/tomos-setup-flow-test-20261008';
 $connection = ['installation_id' => 1234, 'account' => 'tomosweb'];
-$original = file_get_contents(dirname(__DIR__) . '/.github/workflows/github-pages.yml');
+$original = file_get_contents(dirname(__DIR__) . '/tests/fixtures/github-pages-legacy.yml');
 requireTrue(is_string($original), 'Could not read real fixture');
 $fixtures = 0;
 
