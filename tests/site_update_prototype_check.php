@@ -127,7 +127,8 @@ requireTrue($updater->apply($connection, $repo, $invalid)['status'] === 'invalid
 requireTrue($ctx->writes === 0, 'Tampered intent must not write');
 $fixtures++;
 
-[$updater, $ctx] = newFixture($original . "# user modified\n", $old, $new, $connection);
+[$updater, $ctx] = newFixture($original, $old, $new, $connection);
+$ctx->workflow .= "# user modified\n";
 $check = $updater->check($connection, $repo);
 requireTrue($check === ['show_update' => false], 'Unknown workflow must not offer update');
 $fixtures++;
