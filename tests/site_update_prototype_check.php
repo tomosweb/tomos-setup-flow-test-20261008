@@ -43,7 +43,10 @@ function newFixture(string $original, string $old, string $new, array $connectio
             ])];
         }
         if ($mode === 'app' && $method === 'POST' && $path === '/app/installations/1234/access_tokens') {
-            if (($body['permissions']['workflows'] ?? '') !== 'write' ||
+            $perms = $body['permissions'] ?? [];
+            $read = $perms === ['contents' => 'read', 'metadata' => 'read'];
+            $write = $perms === ['contents' => 'write', 'workflows' => 'write', 'metadata' => 'read'];
+            if ((!$read && !$write) ||
                 ($body['repositories'] ?? []) !== ['tomos-setup-flow-test-20261008']) {
                 throw new RuntimeException('Token permission or repository scope mismatch.');
             }
@@ -93,9 +96,31 @@ requireTrue($updater->check($connection, $repo) === ['show_update' => false], 'R
 requireTrue($updater->apply($connection, $repo, $check['intent'])['status'] === 'conflict', 'Repeat apply must not rewrite');
 $fixtures++;
 
+// The update is still discoverable with only existing Contents access.
 [$updater, $ctx] = newFixture($original, $old, $new, $connection, ['permissions' => ['contents' => 'write']]);
-requireTrue($updater->check($connection, $repo) === ['show_update' => false], 'Missing workflow permission must be hidden');
-requireTrue($ctx->writes === 0 && count($ctx->requests) === 1, 'Permission denial must stop before token request');
+$pending = $updater->check($connection, $repo);
+requireTrue(($pending['show_update'] ?? false) === true && ($pending['can_update'] ?? true) === false,
+    'Approved update remains visible without Workflow permission');
+requireTrue(($pending['label'] ?? '') === 'GitHubで更新を許可', 'Permission action label');
+requireTrue(($pending['manage_url'] ?? '') === 'https://github.com/settings/installations/1234',
+    'Permission link must point to verified installation');
+requireTrue(!isset($pending['intent']), 'Do not issue write consent before GitHub permission approval');
+requireTrue($ctx->writes === 0, 'Permission guidance must not write');
+requireTrue(($ctx->requests[1][3]['permissions'] ?? []) === ['contents' => 'read', 'metadata' => 'read'],
+    'Eligibility probe must request only read token');
+// Approval from GitHub changes installation permissions; reconnecting must not be required.
+$ctx->permissions['workflows'] = 'write';
+$ready = $updater->check($connection, $repo);
+requireTrue(($ready['show_update'] ?? false) === true && ($ready['can_update'] ?? false) === true
+    && isset($ready['intent']), 'Permission approval must unlock site update');
+requireTrue($updater->apply($connection, $repo, $ready['intent'])['status'] === 'build_pending',
+    'Explicit update after approval');
+$fixtures++;
+
+// If user has no Contents permission at all, suppress update discovery.
+[$updater, $ctx] = newFixture($original, $old, $new, $connection, ['permissions' => []]);
+requireTrue($updater->check($connection, $repo) === ['show_update' => false], 'No repository access must be hidden');
+requireTrue(count($ctx->requests) === 1 && $ctx->writes === 0, 'No token for unapproved repository access');
 $fixtures++;
 
 [$updater, $ctx] = newFixture($original, $old, $new, $connection);
