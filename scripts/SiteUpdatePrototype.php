@@ -53,7 +53,7 @@ final class TomosSiteUpdatePrototype
 
     public static function blobSha(string $content): string
     {
-        return sha1('blob ' . strlen($content) . "\\0" . $content);
+        return sha1('blob ' . strlen($content) . "\0" . $content);
     }
 
     private function authorize(array $connection, string $repo): array
@@ -122,7 +122,7 @@ final class TomosSiteUpdatePrototype
             ($data['type'] ?? '') !== 'file' || ($data['encoding'] ?? '') !== 'base64') {
             throw new RuntimeException('workflow_unavailable');
         }
-        $encoded = str_replace(["\\r", "\\n"], '', (string) ($data['content'] ?? ''));
+        $encoded = str_replace(["\r", "\n"], '', (string) ($data['content'] ?? ''));
         $contents = base64_decode($encoded, true);
         if (!is_string($contents) || strlen($contents) > 65536 || self::blobSha($contents) !== $sha) {
             throw new RuntimeException('workflow_unavailable');
@@ -212,7 +212,7 @@ final class TomosSiteUpdatePrototype
             return ['show_update' => true, 'label' => 'サイトを更新', 'intent' => $intent];
         } catch (RuntimeException $e) {
             // UI: no update button on unknown/unsupported configurations.
-            return ['show_update' => false, 'internal_status' => $e->getMessage()];
+            return ['show_update' => false];
         }
     }
 
