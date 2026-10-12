@@ -1,27 +1,47 @@
 # Tomos GitHub edition: site update experiment (Phase 3)
 
-Status: experimental only. No production workflow or site content changed.
+Status: experimental only. Do not merge, deploy or change a user's workflow.
 
-## Verified baseline
+## Confirmed baseline
 
-- Existing GitHub Pages workflow pins TOMOS_VERSION to a commit SHA.
-- A template update does not migrate an existing site repository.
-- The current workflow deploys only on main push or manual dispatch, not pull_request.
+- Existing Pages workflow pins `TOMOS_VERSION` to a specific commit.
+- Updating the template does not migrate existing site repositories.
+- This repository's actual workflow Git blob SHA is `3a8e5ab270a4276a646cde9cb7a3c59deadac159`.
+- The workflow deploy job runs on `main` push / explicit workflow dispatch, not on pull requests.
 
-## Intended update modes
+## Prototype behavior
 
-1. Routine Core releases: use a developer-controlled, compatibility-tested stable reference. Do not blindly track main or an unverified latest tag. Verify the resolved commit and builder contract before deployment. The first migration away from pinned SHA must be explicit and safe.
-2. Exceptional structural changes: show a conditional Site Update action in the posting or site-management flow. Read current repository state, validate an allowlisted migration and expected file SHAs, require explicit user approval, then commit only managed files. Preserve content, images, custom themes and settings.
+- `check_tomos_core_update.py`: compare current core SHA against approved compatible release metadata.
+- `site_update_presentation.py`: show **サイトを更新** only when approval has been established. Hide internal `requires_review` / malformed input statuses from users.
+- `plan_workflow_update.py`: an **offline read-only** plan for changing *only* the 40-character `TOMOS_VERSION` in the approved, unchanged workflow. The planner computes and validates Git blob SHA and produces the expected precondition SHA and proposed new blob SHA; it does not send GitHub requests or write files.
+- The sample `stable-core-manifest.json` approves **no upgrade**. It registers one known legacy workflow and the exact same current Core version so it cannot cause an upgrade.
 
-## Required gates before code rollout
+## Checks and tests
 
-- Determine whether the existing GitHub App has workflow write permission; do not request a permission expansion or reauthorization implicitly.
-- Build and test an updater on a disposable repository before touching any existing user repository.
-- Refuse unexpected workflow edits or conflicting HEADs; do not force push.
-- Ensure a failed build does not replace the published Pages artifact.
-- Test legacy pinned workflow, current template workflow, repeat invocation, conflicts, missing permission, and failed build.
-- Provide explicit result states: no update / update available / updating / completed / needs authorization / failed.
+Run from the repository root:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 scripts/plan_workflow_update.py \
+  --workflow .github/workflows/github-pages.yml \
+  --expected-blob-sha 3a8e5ab270a4276a646cde9cb7a3c59deadac159 \
+  --release docs/experiments/stable-core-manifest.json
+```
+
+The initial 19 tests passed against a local copy of the branch files and the actual workflow content on 2026-10-12. The real workflow hash was reproduced exactly. This was **not** a hosted GitHub Actions test or live deployment.
+
+Tested cases: approved update, unchanged version, unapproved update hidden, invalid input, customized workflow, stale read, duplicate version field, manifest mismatch, duplicate sources, and actual workflow baseline.
+
+## Required next gates
+
+1. Decide and implement **routine auto-update** independently of exceptional workflow migration: a developer-controlled stable channel only after compatibility testing, not an arbitrary latest branch. Initial pinned-to-channel migration is a separate, explicit action.
+2. The release manifest must be loaded from a trusted developer-controlled source, never from editable content in the user's site repository. Add integrity, freshness and rollback policy before production use.
+3. Confirm GitHub App **Workflows** permission and explicit user approval for workflow writes. A Contents-only permission must not be assumed sufficient.
+4. Add authenticated update endpoint with optimistic GitHub file SHA precondition; re-read current repo state before writing; fail without force on conflicts or GitHub errors. No persistent user PAT.
+5. Test on a disposable repository with real GitHub workflow writes and actual Pages build before allowing updates to any user repository.
+6. For structural changes, use separate approved complete-file migrations; never apply a version-line patch to an unknown or user-modified workflow.
+7. Failed build must not publish a new artifact; do not report completion before Actions verifies success. Do not silently roll back user commits.
 
 ## Rollout constraints
 
-This document records the experimental specification only. Do not merge to main, deploy, or mutate other repositories without a separate approval and successful tests.
+No production workflow, site content, settings or deployed Pages artifact has been changed. This prototype is **not** a production updater.
