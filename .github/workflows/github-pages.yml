@@ -17,7 +17,7 @@ permissions:
 env:
   # Static Site Builderを含むTomos Publishing Coreの固定commit。
   # 更新時は互換性を確認し、ここを明示的に変更する。
-  TOMOS_VERSION: 13e6d8f4634e687ae774a0e3a6d483f6a095b832
+  TOMOS_VERSION: 5b92b99114d719c083040b4af77f547da9987b32
   TOMOS_REPOSITORY: https://github.com/tomosweb/tomos.git
   OUTPUT_DIR: build/tomos-github-pages
 
@@ -61,6 +61,13 @@ jobs:
           php-version: '8.2'
           extensions: mbstring
           coverage: none
+
+      - name: Run site-update prototype tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          php tests/site_update_prototype_check.php
 
       - name: Fetch pinned Tomos Publishing Core
         shell: bash
