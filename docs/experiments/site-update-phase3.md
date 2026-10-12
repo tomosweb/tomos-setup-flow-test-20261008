@@ -45,3 +45,26 @@ Tested cases: approved update, unchanged version, unapproved update hidden, inva
 ## Rollout constraints
 
 No production workflow, site content, settings or deployed Pages artifact has been changed. This prototype is **not** a production updater.
+
+## Phase 4 prototype verification (2026-10-12)
+
+- Implemented `scripts/SiteUpdatePrototype.php` as a **non-deployed** PHP GitHub App gateway prototype, with mockable transport and a repository hard gate for `tomosweb/tomos-setup-flow-test-20261008`.
+- Uses only a token scoped to that one repository and requests `contents:write`, `workflows:write`, `metadata:read`; refuses an installation that lacks `workflows:write`.
+- Reads the workflow and verifies its Git blob SHA against the developer-approved manifest, validates signed short-lived user consent (intent token), re-reads immediately before the commit, and uses GitHub Contents API `sha` precondition on `main`.
+- A successful GitHub PUT returns `build_pending`, **not** `completed`; actual deployment verification remains a separate step.
+- Unknown, customized, stale or conflicting workflow is never overwritten. No persistently stored user credential or PAT.
+- Added `tests/site_update_prototype_check.php` to cover eight mocked gateway scenarios.
+- Kept original workflow bytes in `tests/fixtures/github-pages-legacy.yml`. The experimental branch changed its own workflow Core SHA from `13e6d8f4634e687ae774a0e3a6d483f6a095b832` to `5b92b99114d719c083040b4af77f547da9987b32` and added Python/PHP tests to the PR build job.
+- GitHub Actions [run 38216930649](https://github.com/tomosweb/tomos-setup-flow-test-20261008/actions/runs/38216930649): **19 Python tests PASS; 8 PHP scenarios PASS; Static Site Builder contract PASS; site build and artifact PASS; Pages deployment SKIPPED**.
+- The experiment's actual workflow modification was made through the **ChatGPT GitHub connector**. This does NOT prove that the separate **Tomos GitHub App** has permission to update workflow files.
+- Current official-site `publish-api/github/_common.php` requests `contents` and `metadata` only; `workflows` permission is not declared in the documented app configuration. Existing Tomos App installations must approve newly requested repository permissions before use.
+
+### Not yet verified / deliberately blocked
+
+1. The real Tomos GitHub App's effective `workflows:write` installation permission (do not silently modify production App registration).
+2. Real Tomos App installation-token workflow PUT; mocked PHP calls are not proof.
+3. Real post-update build tracking for a `main` commit, user-facing progress/result/error UI, and a trustworthy developer-hosted release manifest.
+4. Routine stable-channel auto-updates and the pinned-workflow-to-channel migration (the experimental revision change is NOT this feature).
+5. End-to-end security integration with existing HTTP endpoints, CSRF checks and authenticated Write/Workspace/Publisher sessions.
+
+The experimental PHP class must not be copied directly into production without security review, refactoring of the hardcoded repo gate, and dedicated HTTP-boundary tests.
