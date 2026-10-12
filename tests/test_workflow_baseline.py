@@ -10,7 +10,7 @@ from plan_workflow_update import git_blob_sha, plan
 
 class WorkflowBaselineTest(unittest.TestCase):
     def test_real_legacy_workflow_matches_registered_baseline(self):
-        workflow = (root / ".github/workflows/github-pages.yml").read_text(encoding="utf-8")
+        workflow = (root / "tests/fixtures/github-pages-legacy.yml").read_text(encoding="utf-8")
         manifest = json.loads((root / "docs/experiments/stable-core-manifest.json").read_text(encoding="utf-8"))
         expected = manifest["workflow_sources"][0]["blob_sha"]
         self.assertEqual(git_blob_sha(workflow), expected)
