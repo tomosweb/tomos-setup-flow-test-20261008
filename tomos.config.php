@@ -19,30 +19,12 @@ if (!is_string($tomosRoot) || trim($tomosRoot) === '') {
 }
 
 
-// RESEARCH ONLY: move Core selection to the site config, with immutable SHA verification.
-// GitHub Actions remains unmodified. This is NOT a production updater.
+// Research integration: immutable verified Core, selected by Tomos (never by end users).
 $selectedCoreSha = '76d2aa7a26e8f3672b1c2ac496707fcf6b6311f8';
-$selectedRoot = sys_get_temp_dir() . '/tomos-config-selected-core';
-$clone = 'git clone --depth 1 ' . escapeshellarg('https://github.com/tomosweb/tomos.git') . ' ' . escapeshellarg($selectedRoot) . ' 2>&1';
-$fetch = 'git -C ' . escapeshellarg($selectedRoot) . ' fetch --depth 1 origin ' . escapeshellarg($selectedCoreSha) . ' 2>&1';
-$checkout = 'git -C ' . escapeshellarg($selectedRoot) . ' checkout --detach ' . escapeshellarg($selectedCoreSha) . ' 2>&1';
-$actual = 'git -C ' . escapeshellarg($selectedRoot) . ' rev-parse HEAD 2>&1';
-exec($clone, $output, $status);
-if ($status !== 0) { throw new RuntimeException('Selected Core clone failed: ' . implode(' ', $output)); }
-exec($fetch, $output, $status);
-if ($status !== 0) { throw new RuntimeException('Selected Core fetch failed'); }
-exec($checkout, $output, $status);
-if ($status !== 0) { throw new RuntimeException('Selected Core checkout failed'); }
-$sha = trim((string) shell_exec($actual));
-if (!hash_equals($selectedCoreSha, $sha)) { throw new RuntimeException('Selected Core immutable SHA check failed'); }
-spl_autoload_register(static function (string $class) use ($selectedRoot): void {
-    if (strncmp($class, 'Tomos\\', 6) !== 0) return;
-    $file = $selectedRoot . '/core/' . str_replace('\\', '/', substr($class, 6)) . '.php';
-    if (is_file($file)) require_once $file;
-}, true, true);
+require_once __DIR__ . '/tomos-core-loader.php';
+$selectedRoot = tomosSiteLoadApprovedCore($selectedCoreSha, $tomosRoot, __DIR__);
 $tomosRoot = $selectedRoot;
-putenv('TOMOS_ROOT=' . $selectedRoot);
-echo "CORE_SELECTED_WITHOUT_WORKFLOWS_PASS " . $sha . "\n";
+echo "CORE_SELECTED_WITHOUT_WORKFLOWS_PASS " . $selectedCoreSha . "\n";
 
 // TEMPORARY TEST ONLY: exercise site-owned branding with the original pinned Core
 // without editing GitHub Actions. Remove this branch after verification.
