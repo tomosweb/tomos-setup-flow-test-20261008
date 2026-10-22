@@ -84,6 +84,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/assets"
           cp "$TOMOS_ROOT/assets/tomos-static-search.js" "$GITHUB_WORKSPACE/assets/tomos-static-search.js"
           rm -rf "$OUTPUT_DIR"
+          # Temporary end-to-end test fixture (not committed to content repo).
+          mkdir -p "$GITHUB_WORKSPACE/theme-assets"
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jawAAAABJRU5ErkJggg==' | base64 -d > "$GITHUB_WORKSPACE/theme-assets/ogp.png"
           # Use site-owned branding with the pinned Tomos Core
           if [ -d "$GITHUB_WORKSPACE/theme-assets" ]; then
             mkdir -p "$TOMOS_ROOT/theme-assets"
@@ -125,6 +128,14 @@ jobs:
             base_path=""
           fi
           grep -F "https://$owner.github.io$base_path/" "$OUTPUT_DIR/index.html"
+
+      - name: Verify generated site-wide OGP in Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$OUTPUT_DIR/theme-assets/ogp.png"
+          grep -F 'property="og:image"' "$OUTPUT_DIR/index.html" | grep -F '/theme-assets/ogp.png'
+          grep -F 'name="twitter:image"' "$OUTPUT_DIR/index.html" | grep -F '/theme-assets/ogp.png'
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
