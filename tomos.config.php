@@ -18,6 +18,47 @@ if (!is_string($tomosRoot) || trim($tomosRoot) === '') {
     throw new RuntimeException('TOMOS_ROOT must point to the pinned Tomos checkout.');
 }
 
+// Test fixture: site images are owned by the repository, not the pinned Core.
+$testAssetDir = __DIR__ . '/theme-assets';
+if (!is_dir($testAssetDir)) mkdir($testAssetDir, 0755, true);
+$png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/zY4AAAAASUVORK5CYII=');
+file_put_contents($testAssetDir . '/ogp.png', $png);
+file_put_contents($testAssetDir . '/favicon.png', $png);
+register_shutdown_function(static function (): void {
+    $output = __DIR__ . '/build/tomos-github-pages';
+    $html = @file_get_contents($output . '/index.html');
+    $ok = is_string($html) && str_contains($html, '/theme-assets/ogp.png')
+        && str_contains($html, '/theme-assets/favicon.png')
+        && is_file($output . '/theme-assets/ogp.png')
+        && is_file($output . '/theme-assets/favicon.png');
+    echo $ok ? "CONFIG_BRANDING_NO_WORKFLOW_PASS\n" : "CONFIG_BRANDING_NO_WORKFLOW_FAIL\n";
+});
+
+// TOMOS_SITE_BRANDING_V1
+// Site-owned branding images; no extra GitHub App permissions are required.
+$tomosBrandingSource = __DIR__ . '/theme-assets';
+$tomosBrandingDestination = rtrim($tomosRoot, DIRECTORY_SEPARATOR) . '/theme-assets';
+if (is_dir($tomosBrandingSource)) {
+    foreach (['ogp', 'favicon'] as $tomosBrandingKind) {
+        foreach (['png', 'jpg', 'webp'] as $tomosBrandingExtension) {
+            $tomosBrandingName = $tomosBrandingKind . '.' . $tomosBrandingExtension;
+            $tomosBrandingFile = $tomosBrandingSource . '/' . $tomosBrandingName;
+            if (!is_file($tomosBrandingFile) || is_link($tomosBrandingFile)) continue;
+            if (filesize($tomosBrandingFile) > 10485760) {
+                throw new RuntimeException('Site branding image exceeds 10 MB');
+            }
+            if (!is_dir($tomosBrandingDestination)
+                && !mkdir($tomosBrandingDestination, 0755, true)
+                && !is_dir($tomosBrandingDestination)) {
+                throw new RuntimeException('Cannot prepare site branding assets');
+            }
+            if (!copy($tomosBrandingFile, $tomosBrandingDestination . '/' . $tomosBrandingName)) {
+                throw new RuntimeException('Cannot stage site branding image');
+            }
+        }
+    }
+}
+
 return [
     'site' => [
         'name' => $siteName,
