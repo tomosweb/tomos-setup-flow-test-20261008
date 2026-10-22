@@ -31,7 +31,8 @@ register_shutdown_function(static function (): void {
         && str_contains($html, '/theme-assets/favicon.png')
         && is_file($output . '/theme-assets/ogp.png')
         && is_file($output . '/theme-assets/favicon.png');
-    echo $ok ? "CONFIG_BRANDING_NO_WORKFLOW_PASS\n" : "CONFIG_BRANDING_NO_WORKFLOW_FAIL\n";
+    if (!$ok) throw new RuntimeException("CONFIG_BRANDING_NO_WORKFLOW_FAIL");
+    echo "CONFIG_BRANDING_NO_WORKFLOW_PASS\n";
 });
 
 // TOMOS_SITE_BRANDING_V1
