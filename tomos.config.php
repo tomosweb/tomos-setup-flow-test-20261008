@@ -21,7 +21,7 @@ if (!is_string($tomosRoot) || trim($tomosRoot) === '') {
 
 // RESEARCH ONLY: move Core selection to the site config, with immutable SHA verification.
 // GitHub Actions remains unmodified. This is NOT a production updater.
-$selectedCoreSha = '324065aa446dd0f1f96a314da3db786dfb3474d8';
+$selectedCoreSha = '5b92b99114d719c083040b4af77f547da9987b32';
 $selectedRoot = sys_get_temp_dir() . '/tomos-config-selected-core';
 $clone = 'git clone --depth 1 ' . escapeshellarg('https://github.com/tomosweb/tomos.git') . ' ' . escapeshellarg($selectedRoot) . ' 2>&1';
 $fetch = 'git -C ' . escapeshellarg($selectedRoot) . ' fetch --depth 1 origin ' . escapeshellarg($selectedCoreSha) . ' 2>&1';
