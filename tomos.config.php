@@ -20,7 +20,7 @@ if (!is_string($tomosRoot) || trim($tomosRoot) === '') {
 
 
 // Research integration: immutable verified Core, selected by Tomos (never by end users).
-$selectedCoreSha = '0000000000000000000000000000000000000000';
+$selectedCoreSha = '76d2aa7a26e8f3672b1c2ac496707fcf6b6311f8';
 require_once __DIR__ . '/tomos-core-loader.php';
 $selectedRoot = tomosSiteLoadApprovedCore($selectedCoreSha, $tomosRoot, __DIR__);
 $tomosRoot = $selectedRoot;
