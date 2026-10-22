@@ -21,7 +21,7 @@ if (!is_string($tomosRoot) || trim($tomosRoot) === '') {
 
 // RESEARCH ONLY: move Core selection to the site config, with immutable SHA verification.
 // GitHub Actions remains unmodified. This is NOT a production updater.
-$selectedCoreSha = '5b92b99114d719c083040b4af77f547da9987b32';
+$selectedCoreSha = '76d2aa7a26e8f3672b1c2ac496707fcf6b6311f8';
 $selectedRoot = sys_get_temp_dir() . '/tomos-config-selected-core';
 $clone = 'git clone --depth 1 ' . escapeshellarg('https://github.com/tomosweb/tomos.git') . ' ' . escapeshellarg($selectedRoot) . ' 2>&1';
 $fetch = 'git -C ' . escapeshellarg($selectedRoot) . ' fetch --depth 1 origin ' . escapeshellarg($selectedCoreSha) . ' 2>&1';
@@ -67,10 +67,15 @@ foreach (['ogp.png', 'favicon.png'] as $filename) {
         throw new RuntimeException('Unable to copy site branding into pinned Core');
     }
 }
-register_shutdown_function(static function (): void {
+register_shutdown_function(static function () use ($selectedRoot): void {
     $out = __DIR__ . '/build/tomos-github-pages';
     $html = @file_get_contents($out . '/index.html');
-    $ok = is_string($html)
+    $loadedBuilder = new ReflectionClass('Tomos\\StaticSiteBuilder');
+    $builderSource = (string) @file_get_contents($loadedBuilder->getFileName());
+    $actualCoreChanged = str_starts_with($loadedBuilder->getFileName(), $selectedRoot . '/')
+        && str_contains($builderSource, 'TOMOS_TEST_CORE_SWITCH_20261022');
+    echo $actualCoreChanged ? "NEW_CORE_IMPLEMENTATION_LOADED_PASS\n" : "NEW_CORE_IMPLEMENTATION_LOADED_FAIL\n";
+    $ok = $actualCoreChanged && is_string($html)
         && str_contains($html, '/theme-assets/ogp.png')
         && str_contains($html, '/theme-assets/favicon.png')
         && is_file($out . '/theme-assets/ogp.png')
