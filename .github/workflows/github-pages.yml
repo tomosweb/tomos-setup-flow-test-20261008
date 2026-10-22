@@ -84,6 +84,14 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/assets"
           cp "$TOMOS_ROOT/assets/tomos-static-search.js" "$GITHUB_WORKSPACE/assets/tomos-static-search.js"
           rm -rf "$OUTPUT_DIR"
+          # Use site-owned branding with the pinned Tomos Core
+          if [ -d "$GITHUB_WORKSPACE/theme-assets" ]; then
+            mkdir -p "$TOMOS_ROOT/theme-assets"
+            for asset in "$GITHUB_WORKSPACE"/theme-assets/{ogp,favicon}.{png,jpg,webp}; do
+              [ -f "$asset" ] || continue
+              cp "$asset" "$TOMOS_ROOT/theme-assets/"
+            done
+          fi
           php "$TOMOS_ROOT/tools/build-static-site.php" \
             --config="$GITHUB_WORKSPACE/tomos.config.php" \
             --tomos-root="$TOMOS_ROOT" \
